@@ -135,5 +135,5 @@ def fetch_all_data():
     conn.close()
 
 # Loop through recipe IDs
-for recipe_id in range(100, 2000):
+for recipe_id in range(2000, 257931):
     scrape_page(recipe_id)
