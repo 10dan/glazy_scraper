@@ -27,6 +27,7 @@ def download_images(recipe_dir, image_urls, recipe_id):
         if response.status_code == 200:
             with open(f"{recipe_dir}/{recipe_id}_{i}.jpg", 'wb') as f:
                 f.write(response.content)
+            print(f"saved image from recipe {recipe_id}, image {i}")
 
 def save_recipe_as_json(recipe_dir, materials):
     with open(f"{recipe_dir}/recipe.json", 'w') as f:
@@ -37,14 +38,13 @@ def main():
     create_directory('recipe_images')
 
     for row in all_rows:
-        print(row)
         recipe_id, recipe_name, cone, materials, images = row
 
         recipe_name = recipe_name.replace(' ', '_').replace("'", "")
         recipe_dir = os.path.join('recipe_images', f"{recipe_id}_{recipe_name}")
         create_directory(recipe_dir)
         save_recipe_as_json(recipe_dir, [cone] + json.loads(materials))
-        # download_images(recipe_dir, json.loads(image_urls).replace("'", '"'), recipe_id)
+        download_images(recipe_dir, json.loads(images), recipe_id)
 
     
 if __name__ == "__main__":
