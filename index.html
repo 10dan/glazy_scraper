@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Glaze Predictor</title>
+    <style>
+        /* Layout for the main container */
+        .container {
+            display: flex;
+        }
+
+        /* Layout for sliders */
+        .sliders {
+            flex: 50%;
+        }
+
+        /* Layout for the image */
+        .image {
+            flex: 50%;
+            display: flex;
+            justify-content: top;
+            align-items: center;
+        }
+
+        /* Scaling the image */
+        img {
+            width: 640px;
+            height: 640px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Glaze Recipe</h1>
+    <div class="container">
+        <div class="sliders">
+            <form id="recipe-form">
+                <!-- Generate 291 sliders -->
+                <div id="sliders"></div>
+                <button type="submit">Predict</button>
+            </form>
+        </div>
+        <div class="image">
+            <img id="predicted-image" src="" alt="Predicted Glaze">
+        </div>
+    </div>
+
+    <script>
+        // Generate 291 sliders
+        let slidersHTML = "";
+        for (let i = 1; i <= 291; i++) {
+            slidersHTML += `<label for="material${i}">Material ${i}: </label>`;
+            slidersHTML += `<input type="range" id="material${i}" name="material${i}" min="0" max="1" step="0.01" value="0"><br>`;
+        }
+        document.getElementById('sliders').innerHTML = slidersHTML;
+
+        function makePrediction() {
+            let recipe = {};
+            for (let i = 1; i <= 291; i++) {
+                recipe[`material${i}`] = document.getElementById(`material${i}`).value / 100;
+            }
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ recipe: Object.values(recipe) }),
+            })
+                .then(response => response.blob())
+                .then(blob => {
+                    const objectURL = URL.createObjectURL(blob);
+                    document.getElementById('predicted-image').src = objectURL;
+                });
+        }
+
+        // Attach event listener to each slider
+        for (let i = 1; i <= 291; i++) {
+            document.getElementById(`material${i}`).addEventListener('change', makePrediction);
+        }
+
+    </script>
+</body>
+
+</html>
