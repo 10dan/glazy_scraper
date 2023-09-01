@@ -1,51 +1,39 @@
-import sqlite3
-import requests
-import json
 import os
+import json
+from PIL import Image
+import numpy as np
 
-def fetch_data_from_db():
-    conn = sqlite3.connect('normalized_recipes.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM normalized_recipes')
-    all_rows = c.fetchall()
-    conn.close()
-    return all_rows
+def crop_center(image, crop_width=32, crop_height=32):
+    width, height = image.size
+    left = (width - crop_width) / 2
+    top = (height - crop_height) / 2
+    right = (width + crop_width) / 2
+    bottom = (height + crop_height) / 2
+    return image.crop((left, top, right, bottom))
 
-def create_directory(name):
-    if not os.path.exists(name):
-        os.mkdir(name)
-    # otherwise delete any existing json files (.json)
-    else:
-        for file in os.listdir(name):
-            if file.endswith(".json"):
-                os.remove(os.path.join(name, file))
+def prepare_data():
+    recipe_vectors = []
+    glaze_images = []
 
+    for folder in os.listdir('recipe_images'):
+        with open(f'recipe_images/{folder}/recipe.json', 'r') as f:
+            recipe = json.load(f)
+        
+        for image_file in os.listdir(f'recipe_images/{folder}'):
+            if image_file.endswith('.jpg'):
+                image = Image.open(f'recipe_images/{folder}/{image_file}').convert('RGB')
+                cropped_image = crop_center(image)
+                recipe_vectors.append(recipe)
+                glaze_images.append(np.array(cropped_image))
 
-def download_images(recipe_dir, image_urls, recipe_id):
-    for i, url in enumerate(image_urls):
-        response = requests.get(url)
-        if response.status_code == 200:
-            with open(f"{recipe_dir}/{recipe_id}_{i}.jpg", 'wb') as f:
-                f.write(response.content)
-            print(f"saved image from recipe {recipe_id}, image {i}")
+    # Convert to NumPy arrays
+    recipe_vectors = np.array(recipe_vectors)
+    glaze_images = np.array(glaze_images)
 
-def save_recipe_as_json(recipe_dir, materials):
-    with open(f"{recipe_dir}/recipe.json", 'w') as f:
-        json.dump(materials, f, indent=4)
+    # Save to disk
+    np.save('pickled_vectors.npy', recipe_vectors)
+    np.save('pickled_images.npy', glaze_images)
+# prepare_data()
 
-def main():
-    all_rows = fetch_data_from_db()
-    create_directory('recipe_images')
-
-    for row in all_rows:
-        recipe_id, recipe_name, cone, materials, images = row
-
-        recipe_name = recipe_name.replace(' ', '_').replace("'", "")
-        recipe_dir = os.path.join('recipe_images', f"{recipe_id}_{recipe_name}")
-        create_directory(recipe_dir)
-        save_recipe_as_json(recipe_dir, [cone] + json.loads(materials))
-        download_images(recipe_dir, json.loads(images), recipe_id)
-
-    
-if __name__ == "__main__":
-    main()
+vectors, images = np.load('pickled_vectors.npy'), np.load('pickled_images.npy')
+print(vectors.shape, images.shape)
