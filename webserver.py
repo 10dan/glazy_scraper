@@ -15,6 +15,7 @@ def index():
 @app.route('/predict', methods=['POST'])
 def predict():
     recipe_vector = np.array([request.json['recipe']])
+    print(recipe_vector)
     predicted_image = model.predict(recipe_vector)[0]
     
     # Convert to PIL image and save

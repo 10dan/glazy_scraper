@@ -4,11 +4,10 @@ from PIL import Image
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import Model, Input
-from tensorflow.keras.layers import Dense, Reshape, Conv2DTranspose, Conv2D
+from tensorflow.keras.layers import Dense, Reshape, Conv2DTranspose, Conv2D,BatchNormalization, Dropout
 import tensorflow as tf
 
-
-def crop_center(image, crop_width=32, crop_height=32):
+def crop_center(image, crop_width=128, crop_height=128):
     width, height = image.size
     left = (width - crop_width) / 2
     top = (height - crop_height) / 2
@@ -78,24 +77,29 @@ def create_datasets():
 
 def create_nn():
     input_layer = Input(shape=(291,))
-    x = Dense(128, activation="relu")(input_layer)
-    x = Reshape((4, 4, 8))(x)  # This produces a tensor of shape (None, 4, 4, 8)
-    x = Conv2DTranspose(64, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # Output shape: (None, 8, 8, 64)
-    x = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # Output shape: (None, 16, 16, 32)
-    x = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # Output shape: (None, 32, 32, 32)
-    x = Conv2D(3, (3, 3), activation="sigmoid", padding="same")(x)  # Output shape: (None, 32, 32, 3)
+    x = Dense(1024, activation="relu")(input_layer)  # Increased to 1024
+    x = BatchNormalization()(x)
+    x = Reshape((4, 4, 64))(x)  # Increased channels to 64
+    x = Conv2DTranspose(512, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # 8x8x512
+    x = BatchNormalization()(x)
+    x = Conv2DTranspose(256, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # 16x16x256
+    x = BatchNormalization()(x)
+    x = Conv2DTranspose(128, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # 32x32x128
+    x = BatchNormalization()(x)
+    x = Conv2DTranspose(128, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # 64x64x128
+    x = BatchNormalization()(x)
+    x = Conv2DTranspose(64, (3, 3), strides=(2, 2), activation="relu", padding="same")(x)  # 128x128x64
+    x = BatchNormalization()(x)
+    x = Conv2D(3, (3, 3), activation="sigmoid", padding="same")(x)  # 128x128x3
 
     model = Model(inputs=input_layer, outputs=x)
-
-    # Compile the model
     model.compile(optimizer="adam", loss="mse")
-
-    # Summary to show the architecture
     model.summary()
 
     return model
 
 
+#test
 def train_and_save_model(
     model, training_vectors, validation_vectors, training_images, validation_images
 ):
@@ -104,8 +108,8 @@ def train_and_save_model(
         training_vectors,
         training_images,
         validation_data=(validation_vectors, validation_images),
-        epochs=30,  # You can change the number of epochs
-        batch_size=1,  # You can change the batch size
+        epochs=50,  # You can change the number of epochs
+        batch_size=16,  # You can change the batch size
     )
 
     # Save the trained model
@@ -113,8 +117,6 @@ def train_and_save_model(
 
     return history
 
-print(tf.sysconfig.get_build_info() )
-# Prepare your data and neural network
 (
     training_vectors,
     validation_vectors,
@@ -123,9 +125,9 @@ print(tf.sysconfig.get_build_info() )
     validation_images,
     test_images,
 ) = create_datasets()
+
 model = create_nn()
 
-# Train and save the model
 train_and_save_model(
     model, training_vectors, validation_vectors, training_images, validation_images
 )

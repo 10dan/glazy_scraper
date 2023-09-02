@@ -16,10 +16,10 @@
 
         /* Layout for the image */
         .image {
-            flex: 50%;
-            display: flex;
-            justify-content: top;
-            align-items: center;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         /* Scaling the image */
@@ -57,7 +57,7 @@
         function makePrediction() {
             let recipe = {};
             for (let i = 1; i <= 291; i++) {
-                recipe[`material${i}`] = document.getElementById(`material${i}`).value / 100;
+                recipe[`material${i}`] = document.getElementById(`material${i}`).value * 1;
             }
 
             fetch('/predict', {
