@@ -4,7 +4,7 @@ import json
 import os
 
 def fetch_data_from_db():
-    conn = sqlite3.connect('normalized_recipes.db')
+    conn = sqlite3.connect('recipes.db')
     c = conn.cursor()
     c.execute('SELECT * FROM normalized_recipes')
     all_rows = c.fetchall()

@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+from collections import Counter
 
 cones = {
     "04-11",
@@ -123,20 +124,9 @@ def normalize_recipe(recipe):
 
 
 def update_db():
-    # delete existing normalized_recipes.db
-    try:
-        os.remove("normalized_recipes.db")
-    except FileNotFoundError:
-        pass
-
-    # Connect to the original database
     conn = sqlite3.connect("recipes.db")
     c = conn.cursor()
-
-    # Create and connect to a new database for storing normalized data
-    new_conn = sqlite3.connect("normalized_recipes.db")
-    new_c = new_conn.cursor()
-    new_c.execute(
+    c.execute(
         """CREATE TABLE IF NOT EXISTS normalized_recipes
                    (recipe_id INTEGER PRIMARY KEY, recipe_name TEXT, cone REAL, materials TEXT, images TEXT)"""
     )
@@ -171,7 +161,7 @@ def update_db():
             index = material_to_index[material]
             normalized_material_vector[index] = normalized_amt
 
-        new_c.execute(
+        c.execute(
             "INSERT INTO normalized_recipes (recipe_id, recipe_name, cone, materials, images) VALUES (?, ?, ?, ?, ?)",
             (
                 recipe_id,
@@ -181,11 +171,26 @@ def update_db():
                 new_imgs,
             ),
         )
-
-    new_conn.commit()
-    new_conn.close()
     conn.close()
+
+def get_list_of_allowed_materials():
+    conn = sqlite3.connect('recipes.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT materials FROM recipes')
+    rows = cursor.fetchall()
+    material_counter = Counter()
+    for row in rows:
+        materials = eval(row[0])
+        for material in materials:
+            material_id = material['id']
+            material_counter[material_id] += 1
+    allowed_materials = [m[0] for m in material_counter.most_common(200)]
+    return allowed_materials
 
 
 if __name__ == "__main__":
-    update_db()
+    
+
+
+
+
