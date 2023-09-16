@@ -122,41 +122,50 @@ def normalize_recipe(recipe):
     }
 
 
+def create_unique_materials_json():
+    conn = sqlite3.connect("recipes.db")
+    c = conn.cursor()
+    unique_materials = set()
+
+    c.execute("SELECT * FROM filtered_recipes")
+    for row in c.fetchall():
+        _, _, _, _, materials = row
+        parsed_mats = json.loads(materials.replace("'", '"'))
+        unique_materials.update(ingredient["name"] for ingredient in parsed_mats)
+
+    with open("unique_materials.json", "w") as f:
+        json.dump(list(unique_materials), f)
+
+    conn.close()
+
+
 def normalize_db():
     conn = sqlite3.connect("recipes.db")
     c = conn.cursor()
-    
-    unique_materials = set()
-    c.execute("SELECT * FROM filtered_recipes")
-    for row in c.fetchall():
-        recipe_id, recipe_name, cone, image_urls, materials = row
-        parsed_mats = json.loads(materials.replace("'", '"'))
-        unique_materials.update(ingredient["name"] for ingredient in parsed_mats)
-    
-    c.execute("SELECT * FROM filtered_recipes")
-    for row in c.fetchall():
-        recipe_id, recipe_name, cone, image_urls, materials = row
+    c.execute('''CREATE TABLE IF NOT EXISTS normalized_recipes
+                 (recipe_id INTEGER PRIMARY KEY, recipe_name TEXT,
+                  cone REAL, materials TEXT, images TEXT)''')
 
+    # Load unique materials from precomputed JSON
+    with open("unique_materials.json", "r") as f:
+        unique_materials = set(json.load(f))
+
+    c.execute("SELECT * FROM filtered_recipes")
+    for row in c.fetchall():
+        recipe_id, recipe_name, cone, image_urls, materials = row
         recipe_name = recipe_name.replace(" ", "_").replace("'", "").replace("/", "")
-        
         cleaned_cone = clean_cone(cone)
         normalized_cone = normalize_cone(cleaned_cone)
-
         parsed_mats = json.loads(materials.replace("'", '"'))
         parsed_imgs = json.loads(image_urls.replace("'", '"'))
-
         new_imgs = json.dumps(parsed_imgs)
-        # print(recipe_id, recipe_name)
-        # print(parsed_mats)
         normalized_materials = normalize_recipe(parsed_mats)
-        normalized_material_vector = [0] * len(unique_materials)
-        material_to_index = {
-            material: index for index, material in enumerate(unique_materials)
-        }
 
-        for material, normalized_amt in normalized_materials.items():
-            index = material_to_index[material]
-            normalized_material_vector[index] = normalized_amt
+        normalized_material_vector = [0] * len(unique_materials)
+
+        for i, material in enumerate(unique_materials):
+            if material in normalized_materials:
+                normalized_material_vector[i] = normalized_materials[material]
 
         c.execute(
             "INSERT INTO normalized_recipes (recipe_id, recipe_name, cone, materials, images) VALUES (?, ?, ?, ?, ?)",
@@ -168,7 +177,9 @@ def normalize_db():
                 new_imgs,
             ),
         )
+    conn.commit()
     conn.close()
+
 
 def is_float(value):
     try:
@@ -177,49 +188,52 @@ def is_float(value):
     except ValueError:
         return False
 
+
 def get_list_of_allowed_materials():
-    conn = sqlite3.connect('recipes.db')
+    conn = sqlite3.connect("recipes.db")
     cursor = conn.cursor()
-    cursor.execute('SELECT materials FROM recipes')
+    cursor.execute("SELECT materials FROM recipes")
     rows = cursor.fetchall()
     material_counter = Counter()
     for row in rows:
         materials = eval(row[0])
         for material in materials:
-            material_id = material['id']
+            material_id = material["id"]
             material_counter[material_id] += 1
     allowed_materials = [m[0] for m in material_counter.most_common(200)]
     return allowed_materials
 
+
 def filter_db():
     allowed_mats = get_list_of_allowed_materials()
-    conn = sqlite3.connect('recipes.db')
+    conn = sqlite3.connect("recipes.db")
     cursor = conn.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS filtered_recipes')
-    cursor.execute('CREATE TABLE filtered_recipes AS SELECT * FROM recipes WHERE 1=0')  # Create empty table with same schema
+    cursor.execute("DROP TABLE IF EXISTS filtered_recipes")
+    cursor.execute(
+        "CREATE TABLE filtered_recipes AS SELECT * FROM recipes WHERE 1=0"
+    )  # Create empty table with same schema
 
-    cursor.execute('SELECT * FROM recipes')
+    cursor.execute("SELECT * FROM recipes")
     rows = cursor.fetchall()
 
     for row in rows:
         mats = eval(row[-1])
 
         allowed = all(
-            mat['id'] in allowed_mats and is_float(mat['amt'])
-            for mat in mats
+            mat["id"] in allowed_mats and is_float(mat["amt"]) for mat in mats
         )
 
         if allowed:
-            placeholders = ', '.join(['?'] * len(row))
-            cursor.execute(f'INSERT INTO filtered_recipes VALUES ({placeholders})', row)
+            placeholders = ", ".join(["?"] * len(row))
+            cursor.execute(f"INSERT INTO filtered_recipes VALUES ({placeholders})", row)
 
     conn.commit()
     conn.close()
 
+
 if __name__ == "__main__":
+    # Uncomment this line if you need to create the unique_materials.json file
+    # create_unique_materials_json()
     filter_db()
     normalize_db()
-
-
-
