@@ -1,6 +1,5 @@
 import sqlite3
 import json
-import os
 from collections import Counter
 
 cones = {
@@ -123,22 +122,18 @@ def normalize_recipe(recipe):
     }
 
 
-def update_db():
+def normalize_db():
     conn = sqlite3.connect("recipes.db")
     c = conn.cursor()
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS normalized_recipes
-                   (recipe_id INTEGER PRIMARY KEY, recipe_name TEXT, cone REAL, materials TEXT, images TEXT)"""
-    )
     
     unique_materials = set()
-    c.execute("SELECT * FROM recipes")
+    c.execute("SELECT * FROM filtered_recipes")
     for row in c.fetchall():
         recipe_id, recipe_name, cone, image_urls, materials = row
         parsed_mats = json.loads(materials.replace("'", '"'))
         unique_materials.update(ingredient["name"] for ingredient in parsed_mats)
-
-    c.execute("SELECT * FROM recipes")
+    
+    c.execute("SELECT * FROM filtered_recipes")
     for row in c.fetchall():
         recipe_id, recipe_name, cone, image_urls, materials = row
 
@@ -151,6 +146,8 @@ def update_db():
         parsed_imgs = json.loads(image_urls.replace("'", '"'))
 
         new_imgs = json.dumps(parsed_imgs)
+        # print(recipe_id, recipe_name)
+        # print(parsed_mats)
         normalized_materials = normalize_recipe(parsed_mats)
         normalized_material_vector = [0] * len(unique_materials)
         material_to_index = {
@@ -173,6 +170,13 @@ def update_db():
         )
     conn.close()
 
+def is_float(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
 def get_list_of_allowed_materials():
     conn = sqlite3.connect('recipes.db')
     cursor = conn.cursor()
@@ -187,10 +191,35 @@ def get_list_of_allowed_materials():
     allowed_materials = [m[0] for m in material_counter.most_common(200)]
     return allowed_materials
 
+def filter_db():
+    allowed_mats = get_list_of_allowed_materials()
+    conn = sqlite3.connect('recipes.db')
+    cursor = conn.cursor()
+
+    cursor.execute('DROP TABLE IF EXISTS filtered_recipes')
+    cursor.execute('CREATE TABLE filtered_recipes AS SELECT * FROM recipes WHERE 1=0')  # Create empty table with same schema
+
+    cursor.execute('SELECT * FROM recipes')
+    rows = cursor.fetchall()
+
+    for row in rows:
+        mats = eval(row[-1])
+
+        allowed = all(
+            mat['id'] in allowed_mats and is_float(mat['amt'])
+            for mat in mats
+        )
+
+        if allowed:
+            placeholders = ', '.join(['?'] * len(row))
+            cursor.execute(f'INSERT INTO filtered_recipes VALUES ({placeholders})', row)
+
+    conn.commit()
+    conn.close()
 
 if __name__ == "__main__":
-    
-
+    filter_db()
+    normalize_db()
 
 
 
