@@ -237,3 +237,5 @@ if __name__ == "__main__":
     # create_unique_materials_json()
     filter_db()
     normalize_db()
+
+    # Now add cone to the normalized_recipes.materials?
