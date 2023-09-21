@@ -12,3 +12,6 @@ It would be really helpful to have access to the databse itself, if that ever ha
 - manupulate the data,
 - download the images
 - train ai
+
+## Timeline:
+images downloaded: 20/09/2023

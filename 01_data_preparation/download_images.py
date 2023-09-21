@@ -6,7 +6,7 @@ import os
 def fetch_data_from_db():
     conn = sqlite3.connect('recipes.db')
     c = conn.cursor()
-    c.execute('SELECT * FROM normalized_recipes')
+    c.execute('SELECT * FROM normalized_recipes where recipe_id > 242600')
     all_rows = c.fetchall()
     conn.close()
     return all_rows
