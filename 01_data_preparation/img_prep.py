@@ -46,7 +46,7 @@ destination_dir = "recipe_images_done"
 # 2023-09-23: 2.0 3.29%
 
 
-start_from_recipe_id = 8322  # Set this to the recipe_id from where you want to start the cropping process
+start_from_recipe_id = 8570  # Set this to the recipe_id from where you want to start the cropping process
 cropped_img = None
 
 if not os.path.exists(destination_dir):
