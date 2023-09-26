@@ -46,7 +46,7 @@ destination_dir = "recipe_images_done"
 # 2023-09-23: 2.0 3.29%
 
 
-start_from_recipe_id = 8570  # Set this to the recipe_id from where you want to start the cropping process
+start_from_recipe_id = 10884  # Set this to the recipe_id from where you want to start the cropping process
 cropped_img = None
 
 if not os.path.exists(destination_dir):
@@ -66,7 +66,10 @@ for recipe_folder in sorted_dirs:
 
     json_copied = False  # Reset the flag for each new recipe folder
 
+    img_number = 0 # Only want to look at 2 pics at most - this will count for us.
     for img_file in os.listdir(os.path.join(source_dir, recipe_folder)):
+        if img_number == 2:
+            break
         if img_file.endswith(".jpg"):
             next_image = False
             img_path = os.path.join(source_dir, recipe_folder, img_file)
@@ -77,12 +80,13 @@ for recipe_folder in sorted_dirs:
             img_display = img.copy()
             cv2.namedWindow("Select ROI")
             cv2.setMouseCallback("Select ROI", roi_selection)
-
+            
             while True:
                 cv2.imshow("Select ROI", img_display)
                 key = cv2.waitKey(1) & 0xFF
                 
                 if key == ord("x") or next_image:
+                    img_number += 1
                     break
             
             cv2.destroyAllWindows()
