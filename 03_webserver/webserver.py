@@ -2,15 +2,19 @@ from flask import Flask, request, jsonify, send_file
 from tensorflow.keras.models import load_model
 import numpy as np
 import PIL.Image
+import os
 
 app = Flask(__name__)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 # Load your trained model
 model = load_model('trained_model.keras')
 
 @app.route('/')
 def index():
-    return open("index.html").read()
+    index_path = os.path.join(script_dir, 'index.html')
+    return open(index_path).read()
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -27,5 +31,6 @@ def predict():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    print(script_dir)
 
 # acab (not all)

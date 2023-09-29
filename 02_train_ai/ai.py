@@ -1,7 +1,9 @@
 import os
 import json
-from PIL import Image
+import tensorflow as tf
 import numpy as np
+from PIL import Image
+from tensorflow.keras.layers import LeakyReLU
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import (
@@ -10,19 +12,7 @@ from tensorflow.keras.layers import (
     Conv2DTranspose,
     Conv2D,
     BatchNormalization,
-    Dropout,
 )
-import tensorflow as tf
-
-
-def crop_center(image, crop_width=128, crop_height=128):
-    width, height = image.size
-    left = (width - crop_width) / 2
-    top = (height - crop_height) / 2
-    right = (width + crop_width) / 2
-    bottom = (height + crop_height) / 2
-    return image.crop((left, top, right, bottom))
-
 
 def prepare_data():
     recipe_vectors = []
@@ -38,8 +28,9 @@ def prepare_data():
                 image = Image.open(f"recipe_images_done/{folder}/{image_file}").convert(
                     "RGB"
                 )
+                resized_image = image.resize((256, 256))  # Resizing the image to 256x256
                 recipe_vectors.append(recipe)
-                glaze_images.append(np.array(image))
+                glaze_images.append(np.array(resized_image))
 
     # Convert to NumPy arrays
     recipe_vectors = np.array(recipe_vectors)
@@ -48,7 +39,10 @@ def prepare_data():
     # Save to disk
     np.save("pickled_vectors.npy", recipe_vectors)
     np.save("pickled_images.npy", glaze_images)
-prepare_data()
+
+
+# prepare_data()
+
 
 def create_datasets():
     vectors, images = np.load("pickled_vectors.npy"), np.load("pickled_images.npy")
@@ -67,7 +61,7 @@ def create_datasets():
         training_images,
         validation_images,
     ) = train_test_split(
-        training_vectors, training_images, test_size=0.2, random_state=420
+        training_vectors, training_images, test_size=0.2, random_state=6969
     )
 
     return (
@@ -79,47 +73,53 @@ def create_datasets():
         test_images,
     )
 
-# (
-#     training_vectors,
-#     validation_vectors,
-#     test_vectors,
-#     training_images,
-#     validation_images,
-#     test_images,
-# ) = create_datasets()
+
+
+
+
+from tensorflow.keras.layers import LeakyReLU
 
 def create_nn():
-    input_layer = Input(shape=(291,))
-    x = Dense(1024, activation="relu")(input_layer)  # Increased to 1024
+    input_layer = Input(shape=(196,))  # Assuming your vector size is 196
+    x = Dense(4096)(input_layer)  # 4096 = 4*4*256
+    x = LeakyReLU()(x)
     x = BatchNormalization()(x)
-    x = Reshape((4, 4, 64))(x)  # Increased channels to 64
-    x = Conv2DTranspose(512, (3, 3), strides=(2, 2), activation="relu", padding="same")(
-        x
-    )  # 8x8x512
+    x = Reshape((4, 4, 256))(x)  # Adjusted channels to 256
+    
+    x = Conv2DTranspose(128, (3, 3), strides=(2, 2), padding="same")(x)  # 8x8x128
+    x = LeakyReLU()(x)
     x = BatchNormalization()(x)
-    x = Conv2DTranspose(256, (3, 3), strides=(2, 2), activation="relu", padding="same")(
-        x
-    )  # 16x16x256
+    
+    x = Conv2DTranspose(64, (3, 3), strides=(2, 2), padding="same")(x)  # 16x16x64
+    x = LeakyReLU()(x)
     x = BatchNormalization()(x)
-    x = Conv2DTranspose(128, (3, 3), strides=(2, 2), activation="relu", padding="same")(
-        x
-    )  # 32x32x128
+    
+    x = Conv2DTranspose(32, (3, 3), strides=(2, 2), padding="same")(x)  # 32x32x32
+    x = LeakyReLU()(x)
     x = BatchNormalization()(x)
-    x = Conv2DTranspose(128, (3, 3), strides=(2, 2), activation="relu", padding="same")(
-        x
-    )  # 64x64x128
+    
+    x = Conv2DTranspose(16, (3, 3), strides=(2, 2), padding="same")(x)  # 64x64x16
+    x = LeakyReLU()(x)
     x = BatchNormalization()(x)
-    x = Conv2DTranspose(64, (3, 3), strides=(2, 2), activation="relu", padding="same")(
-        x
-    )  # 128x128x64
+    
+    x = Conv2DTranspose(8, (3, 3), strides=(2, 2), padding="same")(x)  # 128x128x8
+    x = LeakyReLU()(x)
     x = BatchNormalization()(x)
-    x = Conv2D(3, (3, 3), activation="sigmoid", padding="same")(x)  # 128x128x3
+    
+    x = Conv2DTranspose(4, (3, 3), strides=(2, 2), padding="same")(x)  # 256x256x4
+    x = LeakyReLU()(x)
+    x = BatchNormalization()(x)
+    
+    x = Conv2D(3, (3, 3), activation="sigmoid", padding="same")(x)  # 256x256x3
 
     model = Model(inputs=input_layer, outputs=x)
     model.compile(optimizer="adam", loss="mse")
     model.summary()
 
     return model
+
+
+
 
 
 # test
@@ -132,7 +132,7 @@ def train_and_save_model(
         training_images,
         validation_data=(validation_vectors, validation_images),
         epochs=50,  # You can change the number of epochs
-        batch_size=16,  # You can change the batch size
+        batch_size=32,  # You can change the batch size
     )
 
     # Save the trained model
@@ -141,11 +141,17 @@ def train_and_save_model(
     return history
 
 
-
-
 if __name__ == "__main__":
-    # model = create_nn()
-    # train_and_save_model(
-    #     model, training_vectors, validation_vectors, training_images, validation_images
-    # )
+    (
+    training_vectors,
+    validation_vectors,
+    test_vectors,
+    training_images,
+    validation_images,
+    test_images,
+    ) = create_datasets()
+    model = create_nn()
+    train_and_save_model(
+        model, training_vectors, validation_vectors, training_images, validation_images
+    )
     print("Done!")

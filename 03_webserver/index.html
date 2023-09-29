@@ -35,7 +35,6 @@
     <div class="container">
         <div class="sliders">
             <form id="recipe-form">
-                <!-- Generate 291 sliders -->
                 <div id="sliders"></div>
                 <button type="submit">Predict</button>
             </form>
@@ -48,7 +47,7 @@
     <script>
         // Generate 291 sliders
         let slidersHTML = "";
-        for (let i = 1; i <= 291; i++) {
+        for (let i = 1; i <= 196; i++) {
             slidersHTML += `<label for="material${i}">Material ${i}: </label>`;
             slidersHTML += `<input type="range" id="material${i}" name="material${i}" min="0" max="1" step="0.01" value="0"><br>`;
         }
@@ -56,7 +55,7 @@
 
         function makePrediction() {
             let recipe = {};
-            for (let i = 1; i <= 291; i++) {
+            for (let i = 1; i <= 196; i++) {
                 recipe[`material${i}`] = document.getElementById(`material${i}`).value * 1;
             }
 
@@ -75,7 +74,7 @@
         }
 
         // Attach event listener to each slider
-        for (let i = 1; i <= 291; i++) {
+        for (let i = 1; i <= 196; i++) {
             document.getElementById(`material${i}`).addEventListener('change', makePrediction);
         }
 
