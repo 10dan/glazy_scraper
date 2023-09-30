@@ -3,4 +3,5 @@ recipe_images
 tmp
 *.keras
 recipe_images_done/*
+recipe_images_lazy/*
 *.npy
