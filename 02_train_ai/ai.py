@@ -3,7 +3,6 @@ import json
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-from tensorflow.keras.layers import LeakyReLU
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import (
@@ -12,6 +11,7 @@ from tensorflow.keras.layers import (
     Conv2DTranspose,
     Conv2D,
     BatchNormalization,
+    LeakyReLU,
 )
 
 
@@ -46,6 +46,10 @@ def prepare_data():
 # prepare_data()
 
 
+def load_single_example(vector, image):
+    return vector, image
+
+
 def create_datasets():
     vectors, images = np.load("pickled_vectors.npy"), np.load("pickled_images.npy")
 
@@ -65,15 +69,26 @@ def create_datasets():
     ) = train_test_split(
         training_vectors, training_images, test_size=0.2, random_state=6969
     )
-
-    return (
-        training_vectors,
-        validation_vectors,
-        test_vectors,
-        training_images,
-        validation_images,
-        test_images,
+    # Create tf.data.Dataset objects
+    train_dataset = tf.data.Dataset.from_tensor_slices(
+        (training_vectors, training_images)
     )
+    validation_dataset = tf.data.Dataset.from_tensor_slices(
+        (validation_vectors, validation_images)
+    )
+    test_dataset = tf.data.Dataset.from_tensor_slices((test_vectors, test_images))
+
+    # Load and preprocess each example
+    train_dataset = train_dataset.map(load_single_example)
+    validation_dataset = validation_dataset.map(load_single_example)
+    test_dataset = test_dataset.map(load_single_example)
+
+    # Batch the data
+    train_dataset = train_dataset.batch(32)
+    validation_dataset = validation_dataset.batch(32)
+    test_dataset = test_dataset.batch(32)
+
+    return (train_dataset, validation_dataset, test_dataset)
 
 
 def create_nn():
@@ -115,18 +130,22 @@ def create_nn():
 
     return model
 
+def train_and_save_model(model, train_dataset, validation_dataset):
+    # Unpacking datasets into vectors and images
+    training_vectors, training_images = zip(*train_dataset.unbatch().as_numpy_iterator())
+    validation_vectors, validation_images = zip(*validation_dataset.unbatch().as_numpy_iterator())
 
-# test
-def train_and_save_model(
-    model, training_vectors, validation_vectors, training_images, validation_images
-):
+    # Convert the tuples to numpy arrays
+    training_vectors, training_images = np.array(training_vectors), np.array(training_images)
+    validation_vectors, validation_images = np.array(validation_vectors), np.array(validation_images)
+
     # Train the model
     history = model.fit(
         training_vectors,
         training_images,
         validation_data=(validation_vectors, validation_images),
-        epochs=10,  # You can change the number of epochs
-        batch_size=32,  # You can change the batch size
+        epochs=10,
+        batch_size=32,  # Adjusted batch size from 1 to 32
     )
 
     # Save the trained model
@@ -136,16 +155,7 @@ def train_and_save_model(
 
 
 if __name__ == "__main__":
-    (
-    training_vectors,
-    validation_vectors,
-    test_vectors,
-    training_images,
-    validation_images,
-    test_images,
-    ) = create_datasets()
+    train_dataset, validation_dataset, test_dataset = create_datasets()
     model = create_nn()
-    train_and_save_model(
-        model, training_vectors, validation_vectors, training_images, validation_images
-    )
+    train_and_save_model(model, train_dataset, validation_dataset)
     print("Done!")
